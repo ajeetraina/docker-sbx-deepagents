@@ -2,7 +2,7 @@
 
 A [Docker Sandbox Kit](https://github.com/docker/sandbox-kit-spec) (**v3**,
 `schemaVersion: "3"`) that adds the [deepagents](https://github.com/langchain-ai/deepagents)
-agent harness — planning, a virtual filesystem, sub-agents — to an agent
+agent harness (planning, a virtual filesystem, sub-agents) to an agent
 sandbox, pre-wired to a **local Docker Model Runner** for the LLM. No cloud
 credentials, no hosted tracing.
 
@@ -25,8 +25,8 @@ credentials, no hosted tracing.
   └──────────────────────────────────────────────────────────┘
 ```
 
-The mixin composes onto a workload. The sandbox may reach exactly one host —
-the Model Runner on `:12434` — and nothing else at runtime; PyPI opens only
+The mixin composes onto a workload. The sandbox may reach exactly one host
+(the Model Runner on `:12434`) and nothing else at runtime; PyPI opens only
 while the kit installs, then closes.
 
 ## Files
@@ -35,7 +35,7 @@ This is a **mixin** in companion-pair form:
 
 | File | Role |
 |---|---|
-| `deepagents.yaml` | the v3 descriptor — network policy, agent context, lifecycle hooks |
+| `deepagents.yaml` | the v3 descriptor: network policy, agent context, lifecycle hooks |
 | `deepagents.dockerfile` | a `FROM scratch` overlay that carries the runtime `ENV` onto the composed image |
 | `deepagents-context.md` | agent guidance, staged via `agent-context@1` |
 
@@ -49,7 +49,7 @@ This is a **mixin** in companion-pair form:
 - Stages a runnable `~/deepagents_quickstart.py` (not overwritten if present).
 - Phase-scoped egress: PyPI opens only during install; the running agent may
   reach only the Model Runner.
-- No `credential@1` — the Model Runner `api_key` is the sentinel `"dmr"`, not a
+- No `credential@1`: the Model Runner `api_key` is the sentinel `"dmr"`, not a
   secret.
 
 ## Prerequisites
@@ -73,7 +73,7 @@ This is a **mixin** in companion-pair form:
 # Validate the descriptor (fails in a second on a bad field; builds no content):
 docker buildx build . -f deepagents.yaml --output type=cacheonly
 
-# Run it composed onto a shell workload (source form — no registry/push needed).
+# Run it composed onto a shell workload (source form, no registry/push needed).
 # Point --kit at the kit directory by path so the artifact gets a valid name:
 sbx run docker/sbx-kit-shell:1.0.0 \
   --kit "$(pwd)" --name deepagents-demo /path/to/your/workspace
@@ -115,5 +115,5 @@ sbx rm -f deepagents-demo
   key is needed. To use a cloud model instead, add a `credential@1` capability
   and construct the model accordingly.
 - The install runs against the **composed base** at create time, so the kit
-  works regardless of what Python packages the base already carries — as long
+  works regardless of what Python packages the base already carries, as long
   as the Python is ≥ 3.11.
