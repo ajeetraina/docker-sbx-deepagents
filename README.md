@@ -93,13 +93,22 @@ docker buildx build . -f deepagents.yaml -t deepagents:0.7.21 \
 kit-tck validate --layout /tmp/deepagents-layout 0.7.21
 ```
 
-## Publish (optional)
+## Published image
+
+A multi-arch (linux/amd64, linux/arm64) build is on Docker Hub:
+
+```sh
+# Run the published kit composed onto a shell workload:
+sbx run docker/sbx-kit-shell:1.0.0 \
+  --kit docker.io/ajeetraina777/sbx-kit-deepagents:0.7.21 --name deepagents-demo .
+```
+
+To rebuild and push your own:
 
 ```sh
 docker buildx build . -f deepagents.yaml --platform linux/amd64,linux/arm64 --push \
-  -t docker.io/ajeetraina/sbx-kit-deepagents:0.7.21 \
-  -t docker.io/ajeetraina/sbx-kit-deepagents:latest
-sbx run docker/sbx-kit-shell:1.0.0 --kit docker.io/ajeetraina/sbx-kit-deepagents:0.7.21 .
+  -t docker.io/ajeetraina777/sbx-kit-deepagents:0.7.21 \
+  -t docker.io/ajeetraina777/sbx-kit-deepagents:latest
 ```
 
 ## Removing the kit
