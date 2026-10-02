@@ -84,6 +84,17 @@ python3 -c "import deepagents; print('deepagents', deepagents.__version__)"
 python3 ~/deepagents_quickstart.py                  # talk to the Model Runner
 ```
 
+> **Model Runner connectivity.** The client dials `host.docker.internal:12434`,
+> but sbx's policy engine evaluates that egress under the domain `localhost`, so
+> the kit allows both `host.docker.internal:12434` and `localhost:12434` at
+> runtime. That keeps it approval-free. If a different sbx version still prompts
+> with `Approval required for localhost:12434`, grant it once from the host:
+>
+> ```sh
+> sbx policy approval ls
+> sbx policy approval respond <approval-id> --option allow
+> ```
+
 ## Build & verify
 
 ```sh

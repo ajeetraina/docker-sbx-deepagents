@@ -44,11 +44,16 @@ capabilities:
           - pypi.org
           - files.pythonhosted.org
       # Reached by the agent at steady state: the OpenAI-compatible client talks
-      # to the host's Docker Model Runner. `localhost` inside the sandbox is the
-      # sandbox itself, so the host's Model Runner is host.docker.internal.
+      # to the host's Docker Model Runner. The client dials
+      # host.docker.internal:12434, but sbx's policy engine evaluates that egress
+      # under the domain `localhost` (host.docker.internal resolves to the host
+      # loopback), so BOTH names must be allowed. Naming only host.docker.internal
+      # leaves the request at default-deny, where it blocks on a manual
+      # `sbx policy approval`. Allowing both keeps the kit approval-free.
       runtime:
         allow:
           - host.docker.internal:12434
+          - localhost:12434
 
   # Agent guidance. A mixin carries `contentFile` alone — `filename:` is
   # workload-only (the workload owns the agent profile).
