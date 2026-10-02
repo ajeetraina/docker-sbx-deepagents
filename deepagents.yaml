@@ -1,0 +1,117 @@
+# syntax=docker/sandbox-kit:3
+# yaml-language-server: $schema=https://raw.githubusercontent.com/docker/sandbox-kit-spec/main/schema/kit.schema.json
+schemaVersion: "3"
+displayName: DeepAgents (Docker Model Runner)
+description: >-
+  Adds the deepagents agent harness (planning, a virtual filesystem, sub-agents)
+  to a sandbox, pre-wired to a local Docker Model Runner for the LLM — no cloud
+  credentials and no hosted tracing.
+sourceUrl: https://github.com/ajeetraina/docker-sbx-deepagents
+licenses: [Apache-2.0]
+
+kind: mixin
+
+# The pinned release. Bumping the tool is three edits in this file: `version`,
+# the `provides` entry, and the two install hooks below (the installer and the
+# guard that re-reads the installed version). `version:` is the artifact's own
+# version and the fallback for any unversioned provide; here it equals the tool
+# version because this mixin ships exactly that tool.
+version: "0.7.21"
+provides: ["deepagents@0.7.21"]
+
+# No `requires`. The install hooks need python3 (>= 3.11) and pip on whatever
+# workload this lands on — beyond the §12 platform floor (bash, sh, curl, git, a
+# CA store, the agent user at uid 1000). But `requires` is a closed-set check: a
+# name nothing in the composition provides makes the kit refuse to compose
+# EVERYWHERE, and a `deb/` name rules out every Alpine or Wolfi base that would
+# otherwise satisfy it. Instead the first install hook probes the interpreter and
+# fails with an actionable message. Only turn this into a hard requirement after
+# confirming the names are really in the target base's dpkg database:
+#   docker run --rm docker/sbx-kit-shell:1.0.0 dpkg-query -W -f='${Version} ${Status}\n' python3
+#   docker run --rm docker/sbx-kit-shell:1.0.0 dpkg-query -W -f='${Version} ${Status}\n' python3-pip
+# If both print a tilde-free version AND you never need an apk/wolfi base:
+# requires: ["deb/python3", "deb/python3-pip"]
+
+capabilities:
+  # Phase-scoped egress. Install and the running agent get separate allow-lists,
+  # and an absent phase grants nothing.
+  - type: com.docker.sandbox/network-policy@1
+    config:
+      # Reached only by the install hook: pip pulls deepagents and its langchain
+      # dependency closure from PyPI. This grant closes before the agent starts.
+      install:
+        allow:
+          - pypi.org
+          - files.pythonhosted.org
+      # Reached by the agent at steady state: the OpenAI-compatible client talks
+      # to the host's Docker Model Runner. `localhost` inside the sandbox is the
+      # sandbox itself, so the host's Model Runner is host.docker.internal.
+      runtime:
+        allow:
+          - host.docker.internal:12434
+
+  # Agent guidance. A mixin carries `contentFile` alone — `filename:` is
+  # workload-only (the workload owns the agent profile).
+  - type: com.docker.sandbox/agent-context@1
+    config:
+      contentFile: ./deepagents-context.md
+
+  - type: com.docker.sandbox/lifecycle@1
+    config:
+      # deepagents installs into the COMPOSED base's system Python at create time
+      # rather than baking into an overlay layer: a mixin overlay lands on an
+      # unknown base where the Python version and site-packages path differ, so a
+      # copied-in site-packages tree would not resolve. The hook runs where Python
+      # actually is. Hook environments are deny-by-default — HTTP_PROXY/HTTPS_PROXY
+      # are declared because pip fetches through the sandbox's forced proxy.
+      install:
+        - command: "python3 -c \"import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)\" || { echo 'deepagents needs Python >= 3.11 on the composed base' >&2; exit 1; }"
+          user: "1000"
+          description: "Fail early with an actionable message if the base Python is too old"
+        - command: "pip install --break-system-packages 'deepagents==0.7.21' langchain-openai"
+          user: "1000"
+          env: [HTTP_PROXY, HTTPS_PROXY]
+          description: "Install deepagents plus langchain-openai (the OpenAI-compatible client for the Model Runner)"
+        - command: "python3 -c \"import importlib.metadata as m, sys; sys.exit(0 if m.version('deepagents') == '0.7.21' else 1)\" || { echo 'deepagents version mismatch — the pinned provide is a claim about content' >&2; exit 1; }"
+          user: "1000"
+          description: "Re-read the installed version and fail on mismatch — a pinned provide must be true"
+      # A runnable starting point, wired to the Model Runner. `overwrite: false`
+      # leaves an edited copy untouched on re-create.
+      files:
+        - path: /home/agent/deepagents_quickstart.py
+          mode: "0755"
+          overwrite: false
+          description: "Minimal deepagents agent wired to the local Docker Model Runner"
+          content: |
+            #!/usr/bin/env python3
+            """Minimal deepagents agent wired to the local Docker Model Runner.
+
+            No cloud credentials: the model is an OpenAI-compatible client pointed
+            at the Model Runner on the host. Edit DEEPAGENTS_MODEL or the system
+            prompt to taste, then: python3 ~/deepagents_quickstart.py
+            """
+            import os
+
+            from langchain_openai import ChatOpenAI
+
+            from deepagents import create_deep_agent
+
+            model = ChatOpenAI(
+                model=os.environ.get("DEEPAGENTS_MODEL", "ai/qwen3"),
+                base_url=os.environ.get(
+                    "OPENAI_BASE_URL", "http://host.docker.internal:12434/engines/v1"
+                ),
+                api_key=os.environ.get("OPENAI_API_KEY", "dmr"),
+                temperature=0,
+            )
+
+            agent = create_deep_agent(
+                model=model,
+                system_prompt="You are a concise assistant. Plan before you act.",
+            )
+
+            if __name__ == "__main__":
+                result = agent.invoke(
+                    {"messages": [{"role": "user", "content": "In two sentences, what is a sandbox?"}]}
+                )
+                print(result["messages"][-1].content)
