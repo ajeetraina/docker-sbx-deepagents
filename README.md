@@ -1,4 +1,4 @@
-# docker-sbx-deepagents
+# Docker Sandbox kits for DeepAgents
 
 A [Docker Sandbox Kit](https://github.com/docker/sandbox-kit-spec) (**v3**,
 `schemaVersion: "3"`) that adds the [deepagents](https://github.com/langchain-ai/deepagents)
