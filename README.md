@@ -84,6 +84,11 @@ python3 -c "import deepagents; print('deepagents', deepagents.__version__)"
 python3 ~/deepagents_quickstart.py                  # talk to the Model Runner
 ```
 
+```
+python3 ~/deepagents_quickstart.py  
+A sandbox is a controlled environment where software, code, or systems can be tested, experimented with, or run without affecting the main system or data. It isolates processes to prevent unintended consequences, making it essential for security testing, development, and safe exploration of new technologies.
+```
+
 > **Model Runner connectivity.** The client dials `host.docker.internal:12434`,
 > but sbx's policy engine evaluates that egress under the domain `localhost`, so
 > the kit allows both `host.docker.internal:12434` and `localhost:12434` at
